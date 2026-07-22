@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+# PostgreSQL Volume
+postgres_data/
+
+# Kaggle Dataset
+data/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
