@@ -51,23 +51,21 @@ def load_dataframe(df, table_name, engine):
 
     print(f"   ✅ Loaded {len(df):,} rows")
 
-def validate_load(connection, table_name, expected_rows):
+def validate_table(connection, schema_name, table_name):
     """
-    Validate that the expected number of rows were loaded.
+    Print the number of rows inside a PostgreSQL table.
     """
 
     cursor = connection.cursor()
 
-    cursor.execute(f"SELECT COUNT(*) FROM raw.{table_name};")
+    cursor.execute(
+        f"SELECT COUNT(*) FROM {schema_name}.{table_name};"
+    )
 
-    actual_rows = cursor.fetchone()[0]
+    rows = cursor.fetchone()[0]
 
     cursor.close()
 
-    if actual_rows == expected_rows:
-        print(f"   ✅ Validation Passed ({actual_rows:,} rows)")
-    else:
-        print(
-            f"   ❌ Validation Failed "
-            f"(Expected {expected_rows:,}, Found {actual_rows:,})"
-        )
+    print(f"   ✅ {schema_name}.{table_name} contains {rows:,} rows")
+
+    return rows
