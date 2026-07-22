@@ -1,4 +1,5 @@
 import psycopg2
+from sqlalchemy import create_engine
 
 from pipeline.config import (
     DB_HOST,
@@ -23,3 +24,13 @@ def get_connection():
     )
 
     return connection
+
+
+def get_engine():
+    """
+    Return SQLAlchemy engine for pandas.
+    """
+
+    return create_engine(
+        f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    )
