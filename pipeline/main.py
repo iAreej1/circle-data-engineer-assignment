@@ -118,6 +118,7 @@ def main():
 
         mart_tables = [
             "fct_orders",
+            "dim_sellers",
         ]
 
         print()
