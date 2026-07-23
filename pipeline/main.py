@@ -10,36 +10,34 @@ from pipeline.ingest import (
 
 
 def main():
-    print("🚀 Starting Pipeline")
-
-    conn = None
+    print("=" * 60)
+    print("🚀 CIRCLE DATA ENGINEERING PIPELINE")
+    print("=" * 60)
 
     try:
-        # -----------------------------------
+        # ---------------------------------------------------------
         # Connect to PostgreSQL
-        # -----------------------------------
-        conn = get_connection()
+        # ---------------------------------------------------------
+        connection = get_connection()
         engine = get_engine()
 
-        print("✅ Connected to PostgreSQL!")
+        print("✅ Connected to PostgreSQL!\n")
 
-        # -----------------------------------
-        # Create Raw Schema
-        # -----------------------------------
-        run_sql_folder(conn, "sql/raw")
+        # ---------------------------------------------------------
+        # RAW LAYER
+        # ---------------------------------------------------------
+        print("=" * 60)
+        print("📂 RAW LAYER")
+        print("=" * 60)
+
+        run_sql_folder(connection, "sql/raw")
 
         print("✅ Raw schema created successfully!\n")
 
-        # -----------------------------------
-        # Discover CSV files
-        # -----------------------------------
         csv_files = discover_csv_files()
 
         print(f"📂 Found {len(csv_files)} CSV file(s)\n")
 
-        # -----------------------------------
-        # Load Raw Tables
-        # -----------------------------------
         for csv_file in csv_files:
 
             table_name = get_table_name(csv_file)
@@ -51,45 +49,65 @@ def main():
             print(f"   Rows   : {len(df):,}")
             print(f"   Columns: {len(df.columns)}")
 
-            load_dataframe(
-                df,
-                table_name,
-                engine
-            )
+            load_dataframe(df, table_name, engine)
 
-            validate_table(
-                connection=conn,
-                schema_name="raw",
-                table_name=table_name
-            )
+            validate_table(connection, "raw", table_name)
 
             print()
 
-        print("🎉 Raw data ingestion completed successfully!")
+        print("=" * 60)
+        print("✅ RAW LAYER COMPLETED")
+        print("=" * 60)
 
-        # -----------------------------------
-        # Build Staging Layer
-        # -----------------------------------
-        print("\n📦 Building Staging Layer\n")
+        # ---------------------------------------------------------
+        # STAGING LAYER
+        # ---------------------------------------------------------
+        print("\n" + "=" * 60)
+        print("📦 STAGING LAYER")
+        print("=" * 60)
 
-        run_sql_folder(conn, "sql/staging")
+        run_sql_folder(connection, "sql/staging")
 
-        validate_table(
-            connection=conn,
-            schema_name="staging",
-            table_name="stg_orders"
-        )
+        staging_tables = [
+            "stg_orders",
+            "stg_customers",
+            "stg_products",
+            "stg_order_payments",
+            "stg_order_items",
+            "stg_order_reviews",
+            "stg_product_category_translation",
+            "stg_sellers",
+            "stg_geolocation",
+        ]
 
-        print("\n✅ Staging layer built successfully!")
+        print()
+
+        for table in staging_tables:
+            validate_table(connection, "staging", table)
+
+        print()
+
+        print("=" * 60)
+        print("✅ STAGING LAYER COMPLETED")
+        print("=" * 60)
+
+        # ---------------------------------------------------------
+        # Pipeline Finished
+        # ---------------------------------------------------------
+        print("\n" + "=" * 60)
+        print("🎉 PIPELINE COMPLETED SUCCESSFULLY")
+        print("=" * 60)
 
     except Exception as e:
         print("\n❌ Pipeline Failed")
         print(e)
 
     finally:
-        if conn:
-            conn.close()
+        try:
+            connection.close()
             print("\n🔌 Connection Closed")
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
