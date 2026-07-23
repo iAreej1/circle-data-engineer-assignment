@@ -8,23 +8,48 @@ SELECT
 
     COALESCE(
         pct.product_category_name_english,
-        p.product_category_name
+        p.product_category_name,
+        'Unknown'
     ) AS product_category,
 
     COUNT(DISTINCT oi.order_id) AS total_orders,
 
     COUNT(*) AS total_quantity_sold,
 
-    ROUND(SUM(oi.price)::NUMERIC, 2) AS total_revenue,
+    ROUND(
+        SUM(oi.price)::NUMERIC,
+        2
+    ) AS total_revenue,
 
-    SUM(
-        CASE
-            WHEN fo.late_delivery_flag = TRUE THEN 1
-            ELSE 0
+    COUNT(
+        DISTINCT CASE
+            WHEN fo.late_delivery_flag = TRUE
+            THEN oi.order_id
         END
     ) AS late_orders,
 
-    ROUND(AVG(orv.review_score)::NUMERIC, 2) AS avg_review_score
+    ROUND(
+        COALESCE(
+            COUNT(
+                DISTINCT CASE
+                    WHEN fo.late_delivery_flag = TRUE
+                    THEN oi.order_id
+                END
+            )::NUMERIC
+            /
+            NULLIF(
+                COUNT(DISTINCT oi.order_id),
+                0
+            ),
+            0
+        ),
+        4
+    ) AS late_delivery_rate,
+
+    ROUND(
+        AVG(orv.review_score)::NUMERIC,
+        2
+    ) AS avg_review_score
 
 FROM staging.stg_order_items oi
 
@@ -46,5 +71,6 @@ GROUP BY
 
     COALESCE(
         pct.product_category_name_english,
-        p.product_category_name
+        p.product_category_name,
+        'Unknown'
     );

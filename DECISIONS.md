@@ -1,163 +1,183 @@
 # Decision Log
 
-This document records important engineering decisions made during the implementation of the pipeline.
+This document records the key engineering decisions made during the implementation of the data pipeline. Each decision includes the alternatives considered and the reasoning behind the final approach.
 
 ---
 
 ## 2026-07-22 10:00
 
-**Decision**
+### Decision
 
-Separated the pipeline into Raw, Staging, Data Quality, and Mart layers.
+Implemented deterministic hash-based sampling using a configurable seed.
 
-**Considered**
+### Alternatives Considered
 
-Building everything directly from the raw tables.
+* `ORDER BY RANDOM()`
+* `LIMIT N`
+* Random sampling using PostgreSQL's `RANDOM()`
 
-**Reason**
+### Reason
 
-A layered architecture improves maintainability, debugging, and mirrors modern data warehouse design.
+The assessment requires all reported metrics to be reproducible from the same sample. Hash-based sampling guarantees that the same seed always produces the same set of orders, making every pipeline run deterministic.
 
 ---
 
 ## 2026-07-22 11:00
 
-**Decision**
+### Decision
 
-Used PostgreSQL schemas (`raw`, `staging`, `marts`) instead of storing all tables in one schema.
+Stored the sampling seed as an environment variable and injected it into SQL at runtime.
 
-**Considered**
+### Alternatives Considered
 
-Using a single database schema.
+* Hardcoding the seed inside every SQL file.
 
-**Reason**
+### Reason
 
-Logical separation makes the pipeline easier to understand and maintain.
+Keeping the seed in configuration ensures it appears only once, makes the SQL reusable, and satisfies the assessment requirement.
 
 ---
 
-## 2026-07-22 13:30
+## 2026-07-22 13:00
 
-**Decision**
+### Decision
 
-Implemented one staging table for every source table.
+Designed `fct_orders` as an order-level fact table (one row per order).
 
-**Considered**
+### Alternatives Considered
 
-Transforming data directly inside the marts.
+* Building the fact table at the order-item level.
 
-**Reason**
+### Reason
 
-Keeping transformations in the staging layer simplifies downstream SQL and isolates data cleansing.
+Most business metrics such as GMV, delivery performance, and order counts are naturally measured per order. An order-level fact table also avoids accidental double counting during reporting.
 
 ---
 
 ## 2026-07-22 15:00
 
-**Decision**
+### Decision
 
-Preserved duplicate review records.
+Calculated GMV from aggregated order values instead of joining raw transactional tables during analysis.
 
-**Considered**
+### Alternatives Considered
 
-Removing duplicates using `DISTINCT`.
+* Computing revenue directly from joins between orders, order items, and payments.
 
-**Reason**
+### Reason
 
-Investigation showed that duplicate review IDs and multiple reviews per order represent valid business scenarios.
+Orders can contain multiple payment records. Joining raw tables duplicates item rows and inflates revenue. Centralizing revenue in the fact table produces consistent business metrics.
 
 ---
 
-## 2026-07-22 16:15
+## 2026-07-22 16:30
 
-**Decision**
+### Decision
 
-Kept products with missing attributes.
+Assigned each seller a single primary category based on the category with the highest number of items sold.
 
-**Considered**
+### Alternatives Considered
 
-Filtering incomplete product records.
+* Highest revenue category.
+* Most recent category sold.
+* Returning multiple categories per seller.
 
-**Reason**
+### Reason
 
-The missing attributes do not prevent analytical reporting and removing the records would lose valid business transactions.
+Using the most frequently sold category provides a stable business classification while keeping the seller dimension simple for reporting.
 
 ---
 
 ## 2026-07-23 09:00
 
-**Decision**
+### Decision
 
-Implemented an automated SQL-based data quality framework.
+Preserved products with missing attributes instead of removing them.
 
-**Considered**
+### Alternatives Considered
 
-Performing manual validation only.
+* Excluding incomplete product records from the pipeline.
 
-**Reason**
+### Reason
 
-Automated quality checks make the pipeline reproducible and easier to extend.
-
----
-
-## 2026-07-23 10:00
-
-**Decision**
-
-Separated quality tests into individual SQL files.
-
-**Considered**
-
-Writing all quality checks in one SQL script.
-
-**Reason**
-
-Adding future tests only requires creating another SQL file without changing Python code.
+Although some product attributes are missing, the transactions themselves are valid. Removing those records would understate revenue and sales metrics.
 
 ---
 
-## 2026-07-23 11:00
+## 2026-07-23 10:30
 
-**Decision**
+### Decision
 
-Stored the sampling seed as an environment variable.
+Used `COALESCE()` to fall back to the original product category whenever an English translation was unavailable.
 
-**Considered**
+### Alternatives Considered
 
-Hardcoding the seed inside SQL.
+* Excluding products with missing translations.
+* Leaving the translated category as NULL.
 
-**Reason**
+### Reason
 
-Using configuration keeps the SQL reusable and satisfies the assignment requirement that the seed appears only once.
-
----
-
-## 2026-07-23 12:00
-
-**Decision**
-
-Built a fact table (`fct_orders`) and a dimension table (`dim_sellers`).
-
-**Considered**
-
-Querying directly from staging tables.
-
-**Reason**
-
-Star-schema style marts simplify analytical queries and improve readability.
+Keeping every product available for analysis was more valuable than losing records because of missing reference data.
 
 ---
 
-## 2026-07-23 13:00
+## 2026-07-23 11:30
+
+### Decision
+
+Measured delivery reliability using **late delivery rate** rather than only counting late deliveries.
+
+### Alternatives Considered
+
+* Reporting only the number of late orders.
+
+### Reason
+
+A percentage provides a fair comparison across categories with very different sales volumes.
+
+---
+
+## 2026-07-23 12:30
+
+### Decision
+
+Defined seller segments using three business measures: lifetime GMV, total orders, and average review score.
+
+### Alternatives Considered
+
+* Segmenting sellers using only GMV.
+* Segmenting sellers using only order count.
+
+### Reason
+
+Combining financial performance, sales activity, and customer satisfaction provides a more balanced view of seller health than any single metric alone.
+
+---
+
+## 2026-07-23 14:00
+
+### Decision
+
+Reported data quality issues instead of automatically correcting or removing affected records.
+
+### Alternatives Considered
+
+* Automatically filtering invalid or incomplete records during ingestion.
+
+### Reason
+
+The objective of the assessment was to identify and document data quality issues while preserving the original business data. Reporting the issues keeps the pipeline transparent and allows business users to decide how they should be handled.
+
+## 2026-07-23 16:30
 
 **Decision**
 
-Implemented deterministic hash-based sampling.
+Explicitly treated non-delivered orders and delivered orders with missing delivery dates as not late when building `late_delivery_flag`.
 
 **Considered**
 
-Using `ORDER BY RANDOM()`.
+Allowing the flag to remain NULL when the delivery date was missing.
 
 **Reason**
 
-Hash-based sampling is reproducible and guarantees that the same seed always generates the same sample.
+The late-delivery metric is only meaningful for completed deliveries. Explicitly assigning FALSE avoids ambiguous NULL values in downstream reporting and simplifies analytical queries.

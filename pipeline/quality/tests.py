@@ -25,9 +25,6 @@ def format_test_name(file_name):
 
 def run_all_tests(connection):
 
-    print("\n" + "=" * 60)
-    print("🧪 DATA QUALITY TESTS")
-    print("=" * 60)
 
     quality_folder = Path("sql/quality")
 
@@ -86,7 +83,3 @@ def run_all_tests(connection):
             print(f"ℹ Skipping {file_name}")
 
     cursor.close()
-
-    print("\n" + "=" * 60)
-    print("✅ DATA QUALITY CHECKS COMPLETED")
-    print("=" * 60)

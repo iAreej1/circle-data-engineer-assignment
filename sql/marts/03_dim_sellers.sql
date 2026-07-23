@@ -21,6 +21,8 @@ seller_sales AS (
 
         SUM(oi.price)::NUMERIC AS lifetime_gmv,
 
+        COUNT(DISTINCT oi.order_id) AS total_orders,
+
         MIN(o.order_purchase_timestamp) AS first_sale,
 
         MAX(o.order_purchase_timestamp) AS last_sale
@@ -109,6 +111,8 @@ SELECT
 
     ROUND(COALESCE(ss.lifetime_gmv,0),2) AS lifetime_gmv,
 
+    COALESCE(ss.total_orders,0) AS total_orders,
+
     (
         (
             EXTRACT(YEAR FROM AGE(ss.last_sale, ss.first_sale)) * 12
@@ -118,7 +122,7 @@ SELECT
         + 1
     )::INT AS active_months,
 
-    ROUND(COALESCE(sr.avg_review_score,0),2) AS avg_review_score,
+    ROUND(sr.avg_review_score,2) AS avg_review_score,
 
     rc.category_name AS primary_category
 

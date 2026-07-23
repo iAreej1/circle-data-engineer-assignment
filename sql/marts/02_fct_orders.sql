@@ -75,9 +75,10 @@ SELECT
     ) AS delivery_days,
 
     CASE
-        WHEN so.order_delivered_customer_date IS NULL THEN NULL
-        WHEN so.order_delivered_customer_date > so.order_estimated_delivery_date THEN TRUE
-        ELSE FALSE
+    WHEN so.order_status <> 'delivered' THEN FALSE
+    WHEN so.order_delivered_customer_date IS NULL THEN FALSE
+    WHEN so.order_delivered_customer_date > so.order_estimated_delivery_date THEN TRUE
+    ELSE FALSE
     END AS late_delivery_flag
 
 FROM sample_orders so
