@@ -1,6 +1,5 @@
 from pipeline.database import get_connection, get_engine
 from pipeline.sql_runner import run_sql_folder
-from pipeline.quality.tests import run_all_tests
 from pipeline.ingest import (
     discover_csv_files,
     get_table_name,
@@ -8,6 +7,7 @@ from pipeline.ingest import (
     load_dataframe,
     validate_table,
 )
+from pipeline.quality.tests import run_all_tests
 
 
 def main():
@@ -92,12 +92,45 @@ def main():
         print("✅ STAGING LAYER COMPLETED")
         print("=" * 60)
 
+        # ---------------------------------------------------------
+        # DATA QUALITY TESTS
+        # ---------------------------------------------------------
+        print("\n" + "=" * 60)
+        print("🧪 DATA QUALITY TESTS")
+        print("=" * 60)
+
+        run_all_tests(connection)
+
+        print()
+
+        print("=" * 60)
+        print("✅ DATA QUALITY CHECKS COMPLETED")
+        print("=" * 60)
 
         # ---------------------------------------------------------
-        # DATA QUALITY
+        # MARTS LAYER
         # ---------------------------------------------------------
-        run_all_tests(connection)
-        
+        print("\n" + "=" * 60)
+        print("📊 MARTS LAYER")
+        print("=" * 60)
+
+        run_sql_folder(connection, "sql/marts")
+
+        mart_tables = [
+            "fct_orders",
+        ]
+
+        print()
+
+        for table in mart_tables:
+            validate_table(connection, "marts", table)
+
+        print()
+
+        print("=" * 60)
+        print("✅ MARTS LAYER COMPLETED")
+        print("=" * 60)
+
         # ---------------------------------------------------------
         # Pipeline Finished
         # ---------------------------------------------------------

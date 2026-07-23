@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 
@@ -8,6 +9,9 @@ def run_sql_file(connection, file_path):
 
     with open(file_path, "r", encoding="utf-8") as file:
         sql = file.read()
+
+    # Replace placeholders with environment variables
+    sql = sql.replace("{sample_seed}", os.getenv("SEED"))
 
     cursor = connection.cursor()
 
